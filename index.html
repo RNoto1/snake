@@ -6,16 +6,19 @@
 <title>🐍 Deadpool Snake</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    touch-action: none;
+    overscroll-behavior: none;
+  }
   body {
     background: #0a0a0f;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100vh;
+    min-height: 100vh;
     overflow: hidden;
     font-family: 'Courier New', monospace;
-    touch-action: none;
   }
   #score-bar {
     color: #d0372a;
@@ -28,6 +31,7 @@
     border: 2px solid #d0372a;
     box-shadow: 0 0 20px rgba(208,55,42,.2);
     border-radius: 4px;
+    touch-action: none;
   }
   #message {
     color: #f0c040;
@@ -62,7 +66,7 @@ function resizeCanvas() {
   let w = maxW;
   let h = w / ratio;
   if (h > maxH) { h = maxH; w = h * ratio; }
-  CELL = Math.floor(w / COLS);
+  CELL = Math.max(8, Math.floor(w / COLS));
   w = CELL * COLS;
   h = CELL * ROWS;
   canvas.width = w;
@@ -153,7 +157,7 @@ function draw() {
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      // Eyes - white dots facing direction
+      // Eyes
       ctx.fillStyle = '#fff';
       const es = Math.max(1, CELL * 0.13);
       let ex1, ey1, ex2, ey2;
@@ -187,12 +191,10 @@ function drawWolverineMask(px, py) {
   const cy = py + s / 2;
   const pulse = Math.sin(Date.now() / 200) * 0.15 + 0.85;
 
-  // Mask base - yellow/gold
+  // Mask base
   ctx.fillStyle = 'rgba(240,192,64,' + pulse + ')';
   ctx.shadowColor = '#f0c040';
   ctx.shadowBlur = 10;
-
-  // Main mask body
   roundRect(px + s*0.1, py + s*0.2, s*0.8, s*0.65, 2);
   ctx.fill();
 
@@ -223,7 +225,7 @@ function drawWolverineMask(px, py) {
   ctx.ellipse(px + s*0.68, cy + s*0.05, s*0.12, s*0.06, 0, 0, Math.PI*2);
   ctx.fill();
 
-  // Nose hint
+  // Nose
   ctx.fillStyle = 'rgba(0,0,0,.5)';
   ctx.beginPath();
   ctx.ellipse(cx, cy + s*0.18, s*0.05, s*0.08, 0, 0, Math.PI*2);
@@ -304,64 +306,44 @@ function setDirection(dx, dy) {
 }
 
 // ==========================================
-// TOUCH CONTROLS — on DOCUMENT not canvas
+// POINTER EVENTS (works on all phones + desktop)
 // ==========================================
-let touchStartX = 0;
-let touchStartY = 0;
-let touchMoved = false;
+let ptrStartX = 0;
+let ptrStartY = 0;
+let ptrHandled = false;
 const SWIPE_MIN = 20;
 
-document.addEventListener('touchstart', function(e) {
-  e.preventDefault();
-  touchStartX = e.touches[0].clientX;
-  touchStartY = e.touches[0].clientY;
-  touchMoved = false;
-}, { passive: false });
+document.addEventListener('pointerdown', function(e) {
+  ptrStartX = e.clientX;
+  ptrStartY = e.clientY;
+  ptrHandled = false;
+});
 
-document.addEventListener('touchmove', function(e) {
-  e.preventDefault();
-
-  const dx = e.touches[0].clientX - touchStartX;
-  const dy = e.touches[0].clientY - touchStartY;
-
+document.addEventListener('pointermove', function(e) {
   // Not enough movement yet
+  var dx = e.clientX - ptrStartX;
+  var dy = e.clientY - ptrStartY;
   if (Math.abs(dx) < SWIPE_MIN && Math.abs(dy) < SWIPE_MIN) return;
+  if (ptrHandled) return;
 
-  // Already handled this swipe gesture, wait for finger to reset
-  if (touchMoved) return;
-
-  touchMoved = true;
+  ptrHandled = true;
 
   if (Math.abs(dx) > Math.abs(dy)) {
-    // Horizontal swipe
-    if (dx > 0) {
-      setDirection(1, 0);
-      startGame({ x: 1, y: 0 });
-    } else {
-      setDirection(-1, 0);
-      startGame({ x: -1, y: 0 });
-    }
+    if (dx > 0) { setDirection(1, 0); startGame({ x: 1, y: 0 }); }
+    else        { setDirection(-1, 0); startGame({ x: -1, y: 0 }); }
   } else {
-    // Vertical swipe
-    if (dy > 0) {
-      setDirection(0, 1);
-      startGame({ x: 0, y: 1 });
-    } else {
-      setDirection(0, -1);
-      startGame({ x: 0, y: -1 });
-    }
+    if (dy > 0) { setDirection(0, 1); startGame({ x: 0, y: 1 }); }
+    else        { setDirection(0, -1); startGame({ x: 0, y: -1 }); }
   }
-}, { passive: false });
+});
 
-document.addEventListener('touchend', function(e) {
-  e.preventDefault();
-  // If game over and it was a tap (not a swipe), restart
-  if (gameOver && !touchMoved) {
+document.addEventListener('pointerup', function(e) {
+  if (gameOver && !ptrHandled) {
     initGame();
   }
-}, { passive: false });
+});
 
-// Keyboard fallback for desktop testing
+// Keyboard fallback for desktop
 document.addEventListener('keydown', function(e) {
   switch (e.key) {
     case 'ArrowUp':    setDirection(0,-1); startGame({x:0,y:-1}); break;
@@ -376,7 +358,7 @@ document.addEventListener('keydown', function(e) {
 resizeCanvas();
 initGame();
 
-// Keep animating food pulse when idle
+// Animate food pulse when idle
 setInterval(function() {
   if (!started || gameOver) draw();
 }, 80);
