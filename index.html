@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>🐍 Retro Snake</title>
+<title>🐍 Deadpool Snake</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    background: #0f0f0f;
+    background: #0a0a0f;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -17,44 +17,33 @@
     font-family: 'Courier New', monospace;
     touch-action: none;
   }
-
   #score-bar {
-    color: #33ff66;
+    color: #d0372a;
     font-size: 22px;
     letter-spacing: 2px;
     margin-bottom: 10px;
-    text-shadow: 0 0 10px rgba(51,255,102,.5);
+    text-shadow: 0 0 10px rgba(208,55,42,.5);
   }
-
   #game-canvas {
-    border: 2px solid #33ff66;
-    box-shadow: 0 0 20px rgba(51,255,102,.2);
+    border: 2px solid #d0372a;
+    box-shadow: 0 0 20px rgba(208,55,42,.2);
     border-radius: 4px;
   }
-
   #message {
-    color: #33ff66;
+    color: #f0c040;
     font-size: 16px;
     margin-top: 14px;
     text-align: center;
     letter-spacing: 1px;
     min-height: 24px;
-    opacity: 0.8;
-  }
-
-  /* Swipe area covers the whole canvas for touch */
-  #touch-area {
-    position: relative;
   }
 </style>
 </head>
 <body>
 
 <div id="score-bar">SCORE: 0</div>
-<div id="touch-area">
-  <canvas id="game-canvas"></canvas>
-</div>
-<div id="message">Swipe to start 🐍</div>
+<canvas id="game-canvas"></canvas>
+<div id="message">Swipe anywhere to start 🐍</div>
 
 <script>
 const canvas = document.getElementById('game-canvas');
@@ -62,23 +51,17 @@ const ctx = canvas.getContext('2d');
 const scoreBar = document.getElementById('score-bar');
 const messageEl = document.getElementById('message');
 
-// Grid settings
 const COLS = 19;
 const ROWS = 24;
 let CELL = 16;
 
-// Resize canvas to fit screen while keeping grid aspect ratio
 function resizeCanvas() {
   const maxW = Math.min(window.innerWidth - 24, 380);
   const maxH = window.innerHeight - 140;
-  // Maintain the COLS:ROWS ratio
   const ratio = COLS / ROWS;
   let w = maxW;
   let h = w / ratio;
-  if (h > maxH) {
-    h = maxH;
-    w = h * ratio;
-  }
+  if (h > maxH) { h = maxH; w = h * ratio; }
   CELL = Math.floor(w / COLS);
   w = CELL * COLS;
   h = CELL * ROWS;
@@ -86,19 +69,18 @@ function resizeCanvas() {
   canvas.height = h;
   draw();
 }
-
 window.addEventListener('resize', resizeCanvas);
 
 // Game state
 let snake, dir, nextDir, food, score, gameOver, started, speed, loop;
 
 function initGame() {
-  const startX = Math.floor(COLS / 2);
-  const startY = Math.floor(ROWS / 2);
+  const sx = Math.floor(COLS / 2);
+  const sy = Math.floor(ROWS / 2);
   snake = [
-    { x: startX, y: startY },
-    { x: startX - 1, y: startY },
-    { x: startX - 2, y: startY }
+    { x: sx, y: sy },
+    { x: sx - 1, y: sy },
+    { x: sx - 2, y: sy }
   ];
   dir = { x: 0, y: 0 };
   nextDir = { x: 0, y: 0 };
@@ -108,6 +90,7 @@ function initGame() {
   started = false;
   speed = 135;
   updateScore();
+  showMessage("Swipe anywhere to start 🐍");
   draw();
 }
 
@@ -126,13 +109,20 @@ function updateScore() {
   scoreBar.textContent = 'SCORE: ' + score;
 }
 
+function showMessage(text) {
+  messageEl.innerHTML = text;
+}
+
+function clearMessage() {
+  messageEl.innerHTML = '&nbsp;';
+}
+
 function draw() {
-  // Background
-  ctx.fillStyle = '#0a0a0a';
+  ctx.fillStyle = '#0a0a0f';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Subtle grid
-  ctx.strokeStyle = 'rgba(51,255,102,.04)';
+  ctx.strokeStyle = 'rgba(208,55,42,.05)';
   ctx.lineWidth = 1;
   for (let i = 0; i <= COLS; i++) {
     ctx.beginPath();
@@ -147,28 +137,97 @@ function draw() {
     ctx.stroke();
   }
 
-  // Food — pulsing red
-  const pulse = Math.sin(Date.now() / 200) * 0.15 + 0.85;
-  ctx.fillStyle = `rgba(255,60,60,${pulse})`;
-  ctx.shadowColor = '#ff3c3c';
-  ctx.shadowBlur = 12;
-  roundRect(food.x * CELL + 2, food.y * CELL + 2, CELL - 4, CELL - 4, 4);
-  ctx.fill();
-  ctx.shadowBlur = 0;
+  // Food - Wolverine mask
+  drawWolverineMask(food.x * CELL, food.y * CELL);
 
-  // Snake
+  // Snake - Deadpool colors
   for (let i = 0; i < snake.length; i++) {
     const seg = snake[i];
-    const brightness = i === 0 ? 1 : Math.max(0.35, 1 - i * 0.03);
-    ctx.fillStyle = `rgba(51,255,102,${brightness})`;
+
     if (i === 0) {
-      ctx.shadowColor = '#33ff66';
-      ctx.shadowBlur = 10;
+      // Head - red with glow
+      ctx.fillStyle = '#d0372a';
+      ctx.shadowColor = '#ff4030';
+      ctx.shadowBlur = 12;
+      roundRect(seg.x * CELL + 1, seg.y * CELL + 1, CELL - 2, CELL - 2, 4);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Eyes - white dots facing direction
+      ctx.fillStyle = '#fff';
+      const es = Math.max(1, CELL * 0.13);
+      let ex1, ey1, ex2, ey2;
+      if (dir.x === 1 || (dir.x === 0 && dir.y === 0)) {
+        ex1 = seg.x * CELL + CELL*0.65; ey1 = seg.y * CELL + CELL*0.3;
+        ex2 = seg.x * CELL + CELL*0.65; ey2 = seg.y * CELL + CELL*0.6;
+      } else if (dir.x === -1) {
+        ex1 = seg.x * CELL + CELL*0.25; ey1 = seg.y * CELL + CELL*0.3;
+        ex2 = seg.x * CELL + CELL*0.25; ey2 = seg.y * CELL + CELL*0.6;
+      } else if (dir.y === -1) {
+        ex1 = seg.x * CELL + CELL*0.25; ey1 = seg.y * CELL + CELL*0.2;
+        ex2 = seg.x * CELL + CELL*0.6;  ey2 = seg.y * CELL + CELL*0.2;
+      } else {
+        ex1 = seg.x * CELL + CELL*0.25; ey1 = seg.y * CELL + CELL*0.65;
+        ex2 = seg.x * CELL + CELL*0.6;  ey2 = seg.y * CELL + CELL*0.65;
+      }
+      ctx.fillRect(ex1, ey1, es, es);
+      ctx.fillRect(ex2, ey2, es, es);
+    } else {
+      // Body - alternating red & black
+      ctx.fillStyle = (i % 2 === 0) ? '#b03020' : '#1a1a2a';
+      roundRect(seg.x * CELL + 1, seg.y * CELL + 1, CELL - 2, CELL - 2, 4);
+      ctx.fill();
     }
-    roundRect(seg.x * CELL + 1, seg.y * CELL + 1, CELL - 2, CELL - 2, 4);
-    ctx.fill();
-    ctx.shadowBlur = 0;
   }
+}
+
+function drawWolverineMask(px, py) {
+  const s = CELL;
+  const cx = px + s / 2;
+  const cy = py + s / 2;
+  const pulse = Math.sin(Date.now() / 200) * 0.15 + 0.85;
+
+  // Mask base - yellow/gold
+  ctx.fillStyle = 'rgba(240,192,64,' + pulse + ')';
+  ctx.shadowColor = '#f0c040';
+  ctx.shadowBlur = 10;
+
+  // Main mask body
+  roundRect(px + s*0.1, py + s*0.2, s*0.8, s*0.65, 2);
+  ctx.fill();
+
+  // Left horn
+  ctx.beginPath();
+  ctx.moveTo(px + s*0.15, py + s*0.2);
+  ctx.lineTo(px + s*0.3, py + s*0.2);
+  ctx.lineTo(px + s*0.22, py + s*0.02);
+  ctx.closePath();
+  ctx.fill();
+
+  // Right horn
+  ctx.beginPath();
+  ctx.moveTo(px + s*0.7, py + s*0.2);
+  ctx.lineTo(px + s*0.85, py + s*0.2);
+  ctx.lineTo(px + s*0.78, py + s*0.02);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+
+  // Black eye markings
+  ctx.fillStyle = '#0a0a0a';
+  ctx.beginPath();
+  ctx.ellipse(px + s*0.32, cy + s*0.05, s*0.12, s*0.06, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(px + s*0.68, cy + s*0.05, s*0.12, s*0.06, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Nose hint
+  ctx.fillStyle = 'rgba(0,0,0,.5)';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + s*0.18, s*0.05, s*0.08, 0, 0, Math.PI*2);
+  ctx.fill();
 }
 
 function roundRect(x, y, w, h, r) {
@@ -187,34 +246,23 @@ function roundRect(x, y, w, h, r) {
 
 function update() {
   if (!started || gameOver) return;
-
   dir = { ...nextDir };
+  const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
 
-  const head = {
-    x: snake[0].x + dir.x,
-    y: snake[0].y + dir.y
-  };
-
-  // Wall collision
   if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
     endGame();
     return;
   }
-
-  // Self collision
   if (snake.some(s => s.x === head.x && s.y === head.y)) {
     endGame();
     return;
   }
-
   snake.unshift(head);
 
-  // Eat food
   if (head.x === food.x && head.y === food.y) {
     score += 10;
     updateScore();
     food = spawnFood();
-    // Speed up slightly every 5 foods
     if (score % 50 === 0 && speed > 60) {
       speed -= 8;
       clearInterval(loop);
@@ -223,7 +271,6 @@ function update() {
   } else {
     snake.pop();
   }
-
   draw();
 }
 
@@ -234,69 +281,87 @@ function tick() {
 function endGame() {
   gameOver = true;
   clearInterval(loop);
-  messageEl.innerHTML = '💀 GAME OVER — Score: ' + score + '<br>Tap to play again';
-  // Flash effect
-  ctx.fillStyle = 'rgba(255,60,60,.3)';
+  showMessage('💀 GAME OVER — Score: ' + score + '<br>Tap to play again');
+  ctx.fillStyle = 'rgba(208,55,42,.25)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   draw();
 }
 
 function startGame(direction) {
-  if (gameOver) {
-    initGame();
-  }
+  if (gameOver) return;
   if (!started) {
     started = true;
     nextDir = direction;
     dir = direction;
-    messageEl.textContent = '';
+    clearMessage();
     loop = setInterval(tick, speed);
   }
 }
 
-// Direction helpers — prevent reversing
 function setDirection(dx, dy) {
-  if (dx === -dir.x && dy === -dir.y) return; // can't reverse
+  if (dx === -dir.x && dy === -dir.y && started) return;
   nextDir = { x: dx, y: dy };
 }
 
-// Touch controls
-let touchStartX = 0, touchStartY = 0;
+// ==========================================
+// TOUCH CONTROLS — on DOCUMENT not canvas
+// ==========================================
+let touchStartX = 0;
+let touchStartY = 0;
+let touchMoved = false;
 const SWIPE_MIN = 20;
 
-canvas.addEventListener('touchstart', function(e) {
+document.addEventListener('touchstart', function(e) {
   e.preventDefault();
   touchStartX = e.touches[0].clientX;
   touchStartY = e.touches[0].clientY;
+  touchMoved = false;
 }, { passive: false });
 
-canvas.addEventListener('touchmove', function(e) {
+document.addEventListener('touchmove', function(e) {
   e.preventDefault();
+
   const dx = e.touches[0].clientX - touchStartX;
   const dy = e.touches[0].clientY - touchStartY;
 
+  // Not enough movement yet
   if (Math.abs(dx) < SWIPE_MIN && Math.abs(dy) < SWIPE_MIN) return;
 
-  if (Math.abs(dx) > Math.abs(dy)) {
-    if (dx > 0) { setDirection(1, 0); startGame({x:1,y:0}); }
-    else        { setDirection(-1, 0); startGame({x:-1,y:0}); }
-  } else {
-    if (dy > 0) { setDirection(0, 1); startGame({x:0,y:1}); }
-    else        { setDirection(0, -1); startGame({x:0,y:-1}); }
-  }
+  // Already handled this swipe gesture, wait for finger to reset
+  if (touchMoved) return;
 
-  touchStartX = e.touches[0].clientX;
-  touchStartY = e.touches[0].clientY;
+  touchMoved = true;
+
+  if (Math.abs(dx) > Math.abs(dy)) {
+    // Horizontal swipe
+    if (dx > 0) {
+      setDirection(1, 0);
+      startGame({ x: 1, y: 0 });
+    } else {
+      setDirection(-1, 0);
+      startGame({ x: -1, y: 0 });
+    }
+  } else {
+    // Vertical swipe
+    if (dy > 0) {
+      setDirection(0, 1);
+      startGame({ x: 0, y: 1 });
+    } else {
+      setDirection(0, -1);
+      startGame({ x: 0, y: -1 });
+    }
+  }
 }, { passive: false });
 
-// Tap to restart after game over
-canvas.addEventListener('touchend', function(e) {
-  if (gameOver) {
+document.addEventListener('touchend', function(e) {
+  e.preventDefault();
+  // If game over and it was a tap (not a swipe), restart
+  if (gameOver && !touchMoved) {
     initGame();
   }
 }, { passive: false });
 
-// Keyboard fallback (desktop testing)
+// Keyboard fallback for desktop testing
 document.addEventListener('keydown', function(e) {
   switch (e.key) {
     case 'ArrowUp':    setDirection(0,-1); startGame({x:0,y:-1}); break;
@@ -311,8 +376,10 @@ document.addEventListener('keydown', function(e) {
 resizeCanvas();
 initGame();
 
-// Animate food pulse even when idle
-setInterval(() => { if (!started || gameOver) draw(); }, 80);
+// Keep animating food pulse when idle
+setInterval(function() {
+  if (!started || gameOver) draw();
+}, 80);
 </script>
 
 </body>
